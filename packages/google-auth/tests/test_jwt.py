@@ -751,3 +751,28 @@ class TestOnDemandCredentials(object):
         token = self.credentials._get_jwt_for_audience("audience")
 
         assert token != mock.sentinel.token
+
+    def test_before_request_cache_segregation(self):
+        headers1 = {}
+        headers2 = {}
+
+        self.credentials.before_request(
+            None, "GET", "http://example.com/api1", headers1
+        )
+        self.credentials.before_request(
+            None, "GET", "http://example.com/api2", headers2
+        )
+
+        _, token1 = headers1["authorization"].split(" ")
+        _, token2 = headers2["authorization"].split(" ")
+
+        assert token1 != token2
+
+        # Verify caching works for each audience separately
+        headers1_again = {}
+        self.credentials.before_request(
+            None, "GET", "http://example.com/api1", headers1_again
+        )
+        _, token1_again = headers1_again["authorization"].split(" ")
+        assert token1_again == token1
+

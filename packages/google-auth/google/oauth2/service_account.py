@@ -481,6 +481,8 @@ class Credentials(
                     self._jwt_credentials = jwt.Credentials.from_signing_credentials(
                         self, None, additional_claims=additional_claims
                     )
+                    self.token = None
+                    self.expiry = None
             elif audience:
                 if (
                     self._jwt_credentials is None
@@ -489,6 +491,8 @@ class Credentials(
                     self._jwt_credentials = jwt.Credentials.from_signing_credentials(
                         self, audience
                     )
+                    self.token = None
+                    self.expiry = None
             elif self._default_scopes:
                 additional_claims = {"scope": " ".join(self._default_scopes)}
                 if (
@@ -498,10 +502,18 @@ class Credentials(
                     self._jwt_credentials = jwt.Credentials.from_signing_credentials(
                         self, None, additional_claims=additional_claims
                     )
+                    self.token = None
+                    self.expiry = None
         elif not self._scopes and audience:
-            self._jwt_credentials = jwt.Credentials.from_signing_credentials(
-                self, audience
-            )
+            if (
+                self._jwt_credentials is None
+                or self._jwt_credentials._audience != audience
+            ):
+                self._jwt_credentials = jwt.Credentials.from_signing_credentials(
+                    self, audience
+                )
+                self.token = None
+                self.expiry = None
 
     def _build_regional_access_boundary_lookup_url(
         self, request: "Optional[google.auth.transport.Request]" = None  # noqa: F821

@@ -677,6 +677,51 @@ class TestCredentials(object):
             credentials.refresh(None)
         assert excinfo.match("domain wide delegation is not supported")
 
+    def test_before_request_cache_segregation_always_use_jwt_access(self):
+        credentials = service_account.Credentials(
+            SIGNER,
+            self.SERVICE_ACCOUNT_EMAIL,
+            self.TOKEN_URI,
+            always_use_jwt_access=True,
+        )
+        request = mock.create_autospec(transport.Request, instance=True)
+
+        # First request to audience 1
+        headers1 = {}
+        credentials._create_self_signed_jwt("https://service1.googleapis.com/")
+        credentials.before_request(request, "GET", "https://service1.googleapis.com/foo", headers1)
+        token1 = headers1["authorization"]
+
+        # Second request to audience 2
+        headers2 = {}
+        credentials._create_self_signed_jwt("https://service2.googleapis.com/")
+        credentials.before_request(request, "GET", "https://service2.googleapis.com/foo", headers2)
+        token2 = headers2["authorization"]
+
+        assert token1 != token2
+
+    @mock.patch("google.oauth2._client.jwt_grant", autospec=True)
+    def test_before_request_cache_segregation_with_scopes(self, jwt_grant):
+        credentials = self.make_credentials()
+        scopes1 = ["scope1"]
+        scopes2 = ["scope2"]
+        creds1 = credentials.with_scopes(scopes1)
+        creds2 = credentials.with_scopes(scopes2)
+
+        jwt_grant.side_effect = [
+            ("token1", _helpers.utcnow() + datetime.timedelta(seconds=500), {}),
+            ("token2", _helpers.utcnow() + datetime.timedelta(seconds=500), {}),
+        ]
+        request = mock.create_autospec(transport.Request, instance=True)
+
+        headers1 = {}
+        creds1.before_request(request, "GET", "http://example.com", headers1)
+        assert headers1["authorization"] == "Bearer token1"
+
+        headers2 = {}
+        creds2.before_request(request, "GET", "http://example.com", headers2)
+        assert headers2["authorization"] == "Bearer token2"
+
 
 class TestIDTokenCredentials(object):
     SERVICE_ACCOUNT_EMAIL = "service-account@example.com"
