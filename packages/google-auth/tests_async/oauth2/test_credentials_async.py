@@ -105,6 +105,7 @@ class TestCredentials:
         assert creds.expiry == expiry
         assert creds.id_token == mock.sentinel.id_token
         assert creds.rapt_token == rapt_token
+        assert creds.refresh_token == self.REFRESH_TOKEN
 
         # Check that the credentials are valid (have a token and are not
         # expired)

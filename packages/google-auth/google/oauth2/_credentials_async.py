@@ -80,7 +80,8 @@ class Credentials(oauth2_credentials.Credentials):
 
         self.token = access_token
         self.expiry = expiry
-        self._refresh_token = refresh_token
+        if refresh_token is not None:
+            self._refresh_token = refresh_token
         self._id_token = grant_response.get("id_token")
         self._rapt_token = rapt_token
 
