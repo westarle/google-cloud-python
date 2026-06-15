@@ -36,6 +36,10 @@ from google.oauth2 import gdch_credentials
 from google.oauth2 import service_account
 import google.oauth2.credentials
 
+@pytest.fixture(autouse=True)
+def clear_default_cache():
+    _default._default_cache.clear()
+
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 AUTHORIZED_USER_FILE = os.path.join(DATA_DIR, "authorized_user.json")
@@ -1417,6 +1421,7 @@ def test_quota_project_from_environment(get_adc_path):
 
     quota_from_env = "quota_from_env"
     os.environ[environment_vars.GOOGLE_CLOUD_QUOTA_PROJECT] = quota_from_env
+    _default._default_cache.clear()
     credentials, _ = _default.default(quota_project_id=None)
     assert credentials.quota_project_id == quota_from_env
 
@@ -1503,3 +1508,19 @@ def test_get_explicit_environ_credentials_suppresses_deprecation_warning(monkeyp
             and "load_credentials_from_file" in str(w.message)
             for w in caught_warnings
         )
+
+def test_default_memoization(monkeypatch):
+    monkeypatch.setenv(environment_vars.CREDENTIALS, "filename")
+    
+    with mock.patch("google.auth._default.load_credentials_from_file", autospec=True) as load:
+        load.return_value = (MOCK_CREDENTIALS, mock.sentinel.project_id)
+        
+        # First call should call load_credentials_from_file
+        creds1, project1 = _default.default()
+        
+        # Second call should use cache
+        creds2, project2 = _default.default()
+        
+        assert creds1 is creds2
+        assert project1 is project2
+        assert load.call_count == 1

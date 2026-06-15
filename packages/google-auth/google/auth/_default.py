@@ -590,6 +590,8 @@ def _apply_quota_project_id(credentials, quota_project_id):
     return credentials
 
 
+_default_cache = {}
+
 def default(
     scopes: Optional[Sequence[str]] = None,
     request: Optional["google.auth.transport.Request"] = None,
@@ -695,6 +697,15 @@ def default(
     from google.auth.credentials import with_scopes_if_required
     from google.auth.credentials import CredentialsWithQuotaProject
 
+    global _default_cache
+    
+    key_scopes = tuple(scopes) if scopes else None
+    key_default_scopes = tuple(default_scopes) if default_scopes else None
+    
+    cache_key = (key_scopes, id(request), quota_project_id, key_default_scopes)
+    if cache_key in _default_cache:
+        return _default_cache[cache_key]
+
     explicit_project_id = os.environ.get(
         environment_vars.PROJECT, os.environ.get(environment_vars.LEGACY_PROJECT)
     )
@@ -743,6 +754,7 @@ def default(
                     "environment variable",
                     environment_vars.PROJECT,
                 )
+            _default_cache[cache_key] = (credentials, effective_project_id)
             return credentials, effective_project_id
 
     raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
