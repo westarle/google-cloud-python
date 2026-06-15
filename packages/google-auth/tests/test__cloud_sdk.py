@@ -128,6 +128,22 @@ def test_get_config_path_unix(expanduser):
     assert os.path.split(config_path) == ("~/.config", _cloud_sdk._CONFIG_DIRECTORY)
 
 
+def test_get_config_path_no_home(monkeypatch):
+    monkeypatch.delenv("HOME", raising=False)
+    monkeypatch.delenv(environment_vars.CLOUD_SDK_CONFIG_DIR, raising=False)
+
+    import pwd
+
+    def mock_getpwuid(uid):
+        raise KeyError("user not found")
+
+    monkeypatch.setattr(pwd, "getpwuid", mock_getpwuid)
+
+    config_path = _cloud_sdk.get_config_path()
+
+    assert os.path.split(config_path) == ("~/.config", _cloud_sdk._CONFIG_DIRECTORY)
+
+
 @mock.patch("os.name", new="nt")
 def test_get_config_path_windows(monkeypatch):
     appdata = "appdata"
