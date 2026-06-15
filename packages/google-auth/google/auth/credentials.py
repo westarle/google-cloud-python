@@ -16,6 +16,7 @@
 """Interfaces for credentials."""
 
 import abc
+import threading
 from enum import Enum
 import logging
 import os
@@ -81,6 +82,7 @@ class Credentials(_BaseCredentials):
 
         self._use_non_blocking_refresh = False
         self._refresh_worker = RefreshThreadManager()
+        self._refresh_lock = threading.Lock()
 
     @property
     def expired(self):
@@ -155,6 +157,19 @@ class Credentials(_BaseCredentials):
         """
         return None
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        if "_refresh_lock" in state:
+            del state["_refresh_lock"]
+        if "_refresh_worker" in state:
+            del state["_refresh_worker"]
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._refresh_lock = threading.Lock()
+        self._refresh_worker = RefreshThreadManager()
+
     @abc.abstractmethod
     def refresh(self, request):
         """Refreshes the access token.
@@ -199,8 +214,13 @@ class Credentials(_BaseCredentials):
             headers["x-goog-user-project"] = self.quota_project_id
 
     def _blocking_refresh(self, request):
-        if not self.valid:
-            self.refresh(request)
+        if getattr(self, "_refresh_lock", None):
+            with self._refresh_lock:
+                if not self.valid:
+                    self.refresh(request)
+        else:
+            if not self.valid:
+                self.refresh(request)
 
     def _non_blocking_refresh(self, request):
         use_blocking_refresh_fallback = False

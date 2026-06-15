@@ -36,6 +36,7 @@ import io
 import json
 import logging
 import warnings
+import threading
 
 from google.auth import _cloud_sdk
 from google.auth import _helpers
@@ -179,6 +180,8 @@ class Credentials(
 
         if "_refresh_worker" in state_dict:
             del state_dict["_refresh_worker"]
+        if "_refresh_lock" in state_dict:
+            del state_dict["_refresh_lock"]
         return state_dict
 
     def __setstate__(self, d):
@@ -205,6 +208,7 @@ class Credentials(
         # The refresh_handler setter should be used to repopulate this.
         self._refresh_handler = None
         self._refresh_worker = None
+        self._refresh_lock = threading.Lock()
         self._use_non_blocking_refresh = d.get("_use_non_blocking_refresh", False)
         self._account = d.get("_account", "")
         self._rab_manager = d.get("_rab_manager") or (

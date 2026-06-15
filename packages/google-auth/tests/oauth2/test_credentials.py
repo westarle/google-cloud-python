@@ -247,6 +247,35 @@ class TestCredentials(object):
         # expired)
         assert credentials.valid
 
+
+    @mock.patch("google.oauth2.reauth.refresh_grant", autospec=True)
+    def test_refresh_thundering_herd_protection(self, refresh_grant):
+        import concurrent.futures
+        import datetime
+        from google.auth import _helpers
+        token = "token"
+        new_rapt_token = "new_rapt_token"
+        expiry = _helpers.utcnow() + datetime.timedelta(seconds=500)
+        grant_response = {"id_token": mock.sentinel.id_token}
+        
+        # We need refresh_grant to take a little bit of time to ensure threads overlap
+        import time
+        def slow_refresh_grant(*args, **kwargs):
+            time.sleep(0.1)
+            return (token, None, expiry, grant_response, new_rapt_token)
+        refresh_grant.side_effect = slow_refresh_grant
+
+        creds = credentials.Credentials(
+            None, refresh_token="refresh_token", token_uri="https://example.com",
+            client_id="client_id", client_secret="client_secret",
+        )
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            futures = [executor.submit(creds.before_request, mock.sentinel.request, "GET", "https://example.com", {}) for _ in range(10)]
+            concurrent.futures.wait(futures)
+
+        refresh_grant.assert_called_once()
+
     def test_refresh_no_refresh_token(self):
         request = mock.create_autospec(transport.Request)
         credentials_ = credentials.Credentials(token=None, refresh_token=None)
@@ -984,6 +1013,8 @@ class TestCredentials(object):
             # Worker should always be None
             if attr == "_refresh_worker":
                 assert getattr(unpickled, attr) is None
+            elif attr == "_refresh_lock":
+                assert getattr(unpickled, attr) is not None
             else:
                 assert getattr(creds, attr) == getattr(unpickled, attr)
 
@@ -1019,8 +1050,10 @@ class TestCredentials(object):
         for attr in list(creds.__dict__):
             # For the _refresh_handler property, the unpickled creds should be
             # set to None.
-            if attr == "_refresh_handler" or attr == "_refresh_worker":
+            if attr in ("_refresh_handler", "_refresh_worker"):
                 assert getattr(unpickled, attr) is None
+            elif attr == "_refresh_lock":
+                assert getattr(unpickled, attr) is not None
             else:
                 assert getattr(creds, attr) == getattr(unpickled, attr)
 
