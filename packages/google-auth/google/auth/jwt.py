@@ -570,6 +570,9 @@ class Credentials(
 
         payload.update(self._additional_claims)
 
+        if "aud" in payload and "scope" in payload:
+            raise ValueError("Mutual exclusivity violated: cannot set both audience and scope claims.")
+
         jwt = encode(self._signer, payload)
 
         return jwt, expiry
@@ -823,6 +826,9 @@ class OnDemandCredentials(
         }
 
         payload.update(self._additional_claims)
+
+        if "aud" in payload and "scope" in payload:
+            raise ValueError("Mutual exclusivity violated: cannot set both audience and scope claims.")
 
         jwt = encode(self._signer, payload)
 

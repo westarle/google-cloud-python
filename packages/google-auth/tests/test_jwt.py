@@ -487,6 +487,15 @@ class TestCredentials(object):
         assert payload["scope"] == "foo bar"
         assert "aud" not in payload
 
+    def test__make_jwt_audience_scope_mutex(self):
+        cred = jwt.Credentials.from_service_account_info(
+            SERVICE_ACCOUNT_INFO.copy(),
+            audience="audience",
+            additional_claims={"scope": "foo bar"},
+        )
+        with pytest.raises(ValueError, match="Mutual exclusivity"):
+            cred._make_jwt()
+
     def test_with_quota_project(self):
         quota_project_id = "project-foo"
 
@@ -629,6 +638,17 @@ class TestOnDemandCredentials(object):
         assert credentials._signer.key_id == info["private_key_id"]
         assert credentials._issuer == info["client_email"]
         assert credentials._subject == info["client_email"]
+
+    def test_audience_scope_mutex(self):
+        with open(SERVICE_ACCOUNT_JSON_FILE, "r") as fh:
+            info = json.load(fh)
+
+        credentials = jwt.OnDemandCredentials.from_service_account_info(
+            info,
+            additional_claims={"scope": "foo bar"},
+        )
+        with pytest.raises(ValueError, match="Mutual exclusivity"):
+            credentials._make_jwt_for_audience("audience")
 
     def test_from_service_account_info_args(self):
         info = SERVICE_ACCOUNT_INFO.copy()
