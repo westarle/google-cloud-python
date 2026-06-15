@@ -487,6 +487,16 @@ class TestCredentials(object):
         assert payload["scope"] == "foo bar"
         assert "aud" not in payload
 
+    def test__make_jwt_with_custom_audience_override(self):
+        cred = jwt.Credentials.from_service_account_info(
+            SERVICE_ACCOUNT_INFO.copy(),
+            audience="default-audience",
+            additional_claims={"aud": "custom-audience"},
+        )
+        token, _ = cred._make_jwt()
+        payload = jwt.decode(token, PUBLIC_CERT_BYTES)
+        assert payload["aud"] == "custom-audience"
+
     def test_with_quota_project(self):
         quota_project_id = "project-foo"
 
