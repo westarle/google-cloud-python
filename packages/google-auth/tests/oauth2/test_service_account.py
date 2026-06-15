@@ -113,6 +113,13 @@ class TestCredentials(object):
         assert credentials._universe_domain == DEFAULT_UNIVERSE_DOMAIN
         assert not credentials._always_use_jwt_access
 
+    def test_from_service_account_info_missing_fields(self):
+        for field in ("client_email", "private_key", "token_uri"):
+            info = SERVICE_ACCOUNT_INFO.copy()
+            del info[field]
+            with pytest.raises(exceptions.MalformedError):
+                service_account.Credentials.from_service_account_info(info)
+
     def test_from_service_account_info_non_gdu(self):
         credentials = service_account.Credentials.from_service_account_info(
             SERVICE_ACCOUNT_INFO_NON_GDU
@@ -713,6 +720,15 @@ class TestIDTokenCredentials(object):
         assert credentials._token_uri == SERVICE_ACCOUNT_INFO["token_uri"]
         assert credentials._target_audience == self.TARGET_AUDIENCE
         assert not credentials._use_iam_endpoint
+
+    def test_from_service_account_info_missing_fields(self):
+        for field in ("client_email", "private_key", "token_uri"):
+            info = SERVICE_ACCOUNT_INFO.copy()
+            del info[field]
+            with pytest.raises(exceptions.MalformedError):
+                service_account.IDTokenCredentials.from_service_account_info(
+                    info, target_audience=self.TARGET_AUDIENCE
+                )
 
     def test_from_service_account_info_non_gdu(self):
         credentials = service_account.IDTokenCredentials.from_service_account_info(
