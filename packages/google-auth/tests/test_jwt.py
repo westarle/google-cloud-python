@@ -553,6 +553,15 @@ class TestCredentials(object):
         self.credentials.before_request(None, "GET", "http://example.com?a=1#3", {})
         assert self.credentials.valid
 
+    def test_apply_with_quota_project_id(self):
+        headers = {}
+        credentials = self.credentials.with_quota_project("project-foo")
+        credentials.refresh(None)
+        credentials.before_request(
+            None, "GET", "http://example.com?a=1#3", headers
+        )
+        assert headers["x-goog-user-project"] == "project-foo"
+
     def test_build_regional_access_boundary_lookup_url_standard(self, monkeypatch):
         from google.auth.transport import _mtls_helper
 
@@ -741,6 +750,14 @@ class TestOnDemandCredentials(object):
         _, new_token = headers["authorization"].split(" ")
 
         assert new_token == token
+
+    def test_apply_with_quota_project_id(self):
+        headers = {}
+        credentials = self.credentials.with_quota_project("project-foo")
+        credentials.before_request(
+            None, "GET", "http://example.com?a=1#3", headers
+        )
+        assert headers["x-goog-user-project"] == "project-foo"
 
     def test_expired_token(self):
         self.credentials._cache["audience"] = (
