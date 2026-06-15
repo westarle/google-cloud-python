@@ -627,6 +627,8 @@ class TestCredentials(object):
         assert isinstance(credentials.token, str)
         payload = jwt.decode(credentials.token, verify=False)
         assert payload["aud"] == "https://pubsub.googleapis.com"
+        assert payload["sub"] == credentials.service_account_email
+        assert payload["exp"] == payload["iat"] + 3600
 
     @mock.patch("google.oauth2._client.jwt_grant", autospec=True)
     @mock.patch("google.auth.jwt.Credentials.refresh", autospec=True)
